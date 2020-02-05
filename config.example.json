@@ -1,0 +1,8 @@
+{
+  "template_csv_file_path": "/path/to/your/template_file.csv",
+  "template_directory_path": "/path/to/your/template/directory",
+  "output_directory_path": "/path/to/your/output/directory",
+  "flat_file_placeholder": "Flat.File.{}-{}.csv",
+  "template_table_name": "templates_updated",
+  "template_values_table_name": "template_values_updated"
+}
