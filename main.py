@@ -14,7 +14,9 @@ def main():
             "output_directory_path",
             "flat_file_placeholder",
             "template_table_name",
-            "template_values_table_name"]
+            "template_values_table_name",
+            "create_csv",
+            "filter_country"]
 
     for key in keys:
         if key not in configs:

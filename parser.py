@@ -1,6 +1,7 @@
 import os
 from datetime import datetime
 import math
+import json
 
 import pandas as pd
 
@@ -29,22 +30,39 @@ def get_logs():
     return logs
 
 
-def export(data, csv_file, sql_file, columns, table_name, include_id_in_sql):
-    os.makedirs(os.path.dirname(csv_file), exist_ok=True)
+def export(data, csv_file, sql_file, columns, csv_index, sql_index, start_index, table_name):
     os.makedirs(os.path.dirname(sql_file), exist_ok=True)
 
-    df = pd.DataFrame(data=data,
-                      columns=columns)
+    if csv_file is not None:
+        """CREATE CSV FILE"""
+        os.makedirs(os.path.dirname(csv_file), exist_ok=True)
 
-    df.to_csv(csv_file, index=False)
+        df = pd.DataFrame(data=data,
+                          columns=columns)
 
-    sql_columns = ','.join(['`{}`'.format(column) for column in (columns[0 if include_id_in_sql else 1:])])
+        # add csv_index as index
+        if csv_index:
+            df.index.name = csv_index
+            df.index += start_index
+            df.to_csv(csv_file, index=True)
+        else:
+            df.to_csv(csv_file, index=False)
 
-    # create sql file
+    """CREATE SQL FILE"""
+    # add sql_index as index
+    if sql_index:
+        sql_columns = ','.join(['`{}`'.format(column) for column in [sql_index] + columns])
+    else:
+        sql_columns = ','.join(['`{}`'.format(column) for column in columns])
+
     text = "INSERT INTO `{}` ({}) VALUES\n".format(table_name, sql_columns)
 
     for i in range(len(data)):
-        row = ','.join(['"{}"'.format(d) for d in data[i][1:]])
+
+        if sql_index:
+            row = ','.join(['"{}"'.format(d) for d in [i + start_index] + data[i]])
+        else:
+            row = ','.join(['"{}"'.format(d) for d in data[i]])
 
         if i == len(data) - 1:
             text += '({});'.format(row)
@@ -84,11 +102,21 @@ def write_logs(output_directory_path, start_time, end_time):
 
     out_logs.close()
 
-    log_text = 'OPERATION COMPLETED in {} with {} errors, {} empty files and {} missing files. Check logs.'.format(
-        end_time - start_time, errors, empty_files, missing_files)
+    already_exist = 0
+    out_logs = open('%s/logs-already-exist-files.txt' % output_directory_path, 'w')
+    for log in logs:
+        if log.startswith('ALREADY_EXIST:'):
+            already_exist += 1
+            out_logs.write(log[len('ALREADY_EXIST:'):] + '\n')
 
-    logs.append(log_text)
-    print('\n{}'.format(log_text), end='\n')
+    out_logs.close()
+
+    global current_rows, total_rows
+    current_rows = total_rows
+    log_text = 'OPERATION COMPLETED in {} with {} errors, {} empty files, {} already exist files, {} missing files. Check logs.'.format(
+        end_time - start_time, errors, empty_files, already_exist, missing_files)
+
+    print_progress(log_text)
 
     out_logs = open('%s/logs.txt' % output_directory_path, 'w')
     out_logs.write('\n'.join(logs))
@@ -97,16 +125,20 @@ def write_logs(output_directory_path, start_time, end_time):
 
 def print_progress(text):
     logs.append(text)
-    percent = current_row * 100.0 / total_rows
-    percent_ceil = math.ceil(percent)
-    print("\r|{}>{}| %.2f%% Done".format('=' * percent_ceil, '-' * (100 - percent_ceil)) % percent, end=' ')
+    # percent = current_row * 100.0 / total_rows
+    # percent_ceil = math.ceil(percent)
+    # print("\r|{}>{}| %.2f%% Done".format('=' * percent_ceil, '-' * (100 - percent_ceil)) % percent, end=' ')
+    print(text, end='\n')
 
 
-def get_template_data(df_out, id, category, country_code, flat_tmp_id):
+def get_template_data(df, category, country_code, flat_tmp_id):
+    now = datetime.now()
+    str_now = now.strftime("%Y-%m-%d %H:%M:%S")
+
     # parsing head in key-value pairs
     kv_dict = {}
-    for j in range(len(df_out.iloc[0])):
-        kv = df_out.iloc[0, j]
+    for j in range(len(df.iloc[0])):
+        kv = df.iloc[0, j]
 
         if kv is None or pd.isna(kv):
             continue
@@ -132,18 +164,67 @@ def get_template_data(df_out, id, category, country_code, flat_tmp_id):
     # 'id', 'tpl_name', 'version', 'country', 'raw', 'imported_status', 'imported_by', 'imported_at',
     # 'flat_tmpl_id', 'status'
 
-    raw = df_out.to_csv(index=False, header=False, sep='\t')
+    raw = df.to_csv(index=False, header=False, sep='\t')
 
-    return [id, category, kv_dict['Version'], country_code, raw, 1, 1, 1, flat_tmp_id, 1]
+    return [category, kv_dict['Version'], country_code, raw, 1, 1, str_now, flat_tmp_id, 1]
 
 
-def get_template_definition():
-    # `id`, `fields`, `labels`, `examples`, `definition`, `valid_values`, `tmpl_id`, `country`, `required`, `status`, `imported_by`, `imported_at`
-    pass
+def get_template_definition(df, df_val, category, country_code, flat_tmp_id):
+    kv = {}
+    now = datetime.now()
+    str_now = now.strftime("%Y-%m-%d %H:%M:%S")
+
+    now = datetime.now()
+    for i in range(len(df_val.columns)):
+        values = []
+        for j in range(2, len(df_val[i])):
+            value = df_val.iloc[j, i]
+            if value is not None and not pd.isnull(value):
+                values.append(value)
+
+        head = df_val.iloc[0, i]
+        head = [h.strip().strip(']').strip('[').strip() for h in str(head).split('-')]
+
+        key = df_val.iloc[1, i]
+        pos = 1 if len(head) >= 2 else 0
+
+        if key in kv:
+            kv[key][head[pos]] = values
+        else:
+            kv[key] = {head[pos]: values}
+
+    new_kv = {}
+    for key in kv:
+        inner_keys = [k for k in kv[key].keys()]
+        if len(inner_keys) >= 2:
+            new_kv[key] = kv[key]
+        else:
+            new_kv[key] = kv[key][inner_keys[0]]
+
+    data = []
+    for i in range(3, len(df)):
+        field_name = df.iloc[i, 1]
+        local_label_name = df.iloc[i, 2]
+        example = df.iloc[i, 5]
+        required = 1 if df.iloc[i, 6] == 'Required' else 0
+
+        if field_name is None or pd.isnull(field_name) or len(field_name) == 0:
+            continue
+
+        # `fields`, `labels`, `examples`, `definition`, `valid_values`, `tmpl_id`, `country`, `required`, `status`, `imported_by`, `imported_at`
+        if field_name in new_kv:
+            data.append([field_name, local_label_name, example, required, json.dumps(new_kv[field_name]), flat_tmp_id,
+                         country_code, required, 1, 1, str_now])
+        else:
+            data.append(
+                [field_name, local_label_name, example, required, '', flat_tmp_id, country_code, required, 1, 1,
+                 str_now])
+
+    return data
 
 
 def parser(template_csv_file_path, template_directory_path, output_directory_path, flat_file_placeholder,
-           template_table_name, template_values_table_name):
+           template_table_name, template_values_table_name, create_csv, filter_country):
     template_csv_df = pd.read_csv(template_csv_file_path, header=None)
 
     global logs, total_rows, current_row
@@ -153,13 +234,29 @@ def parser(template_csv_file_path, template_directory_path, output_directory_pat
 
     start = datetime.now()
 
-    template_data = []
-    template_data_def = []
-
     total_rows = len(template_csv_df)
 
     # group by country code
-    for country_code, template_csv_df_group in dict(tuple(template_csv_df.groupby(2))).items():
+    groups = dict(tuple(template_csv_df.groupby(2)))
+    # country_codes = sorted(groups.keys(), reverse=True)
+    country_codes = groups.keys()
+
+    for country_code in country_codes:
+        if len(filter_country) > 0 and country_code not in filter_country:
+            continue
+
+        template_csv_df_group = groups[country_code]
+
+        template_data = []
+        template_data_def = []
+
+        out_path_csv = os.path.join(output_directory_path, country_code, '{}.csv'.format(template_table_name))
+        out_path_sql = os.path.join(output_directory_path, country_code, '{}.sql'.format(template_table_name))
+
+        if os.path.exists(out_path_csv) and os.path.isfile(out_path_csv) and os.path.exists(
+                out_path_sql) and os.path.isfile(out_path_sql):
+            print_progress('ALREADY_EXIST:%s and %s already exist' % (out_path_csv, out_path_sql))
+            continue
 
         for i in range(len(template_csv_df_group)):
 
@@ -181,7 +278,7 @@ def parser(template_csv_file_path, template_directory_path, output_directory_pat
             if df is None:
                 continue
 
-            row = get_template_data(df, i + 1, category, country_code, flat_tmp_id)
+            row = get_template_data(df, category, country_code, flat_tmp_id)
             template_data.append(row)
 
             """ PROCESS TEMPLATE VALUES FILE """
@@ -213,45 +310,37 @@ def parser(template_csv_file_path, template_directory_path, output_directory_pat
                 continue
 
             # print_progress(df_val)
-            # row = get_template_definition(df, df_val)
-            # template_data_def.append(row)
+            rows = get_template_definition(df, df_val, category, country_code, flat_tmp_id)
+            template_data_def += rows
 
-            # break
+        if len(template_data) > 0:
+            export(data=template_data,
+                   csv_file=out_path_csv if create_csv else None,
+                   sql_file=out_path_sql,
+                   columns=['tpl_name', 'version', 'country', 'raw', 'imported_status', 'imported_by',
+                            'imported_at',
+                            'flat_tmpl_id', 'status'],
+                   csv_index='id',
+                   sql_index=None,
+                   start_index=1,
+                   table_name=template_table_name)
 
-    out_path_csv = os.path.join(output_directory_path, '{}.csv'.format(template_table_name))
-    out_path_sql = os.path.join(output_directory_path, '{}.sql'.format(template_table_name))
+        out_path_csv = os.path.join(output_directory_path, country_code, '{}.csv'.format(template_values_table_name))
+        out_path_sql = os.path.join(output_directory_path, country_code, '{}.sql'.format(template_values_table_name))
 
-    if len(template_data) > 0:
-        export(data=template_data,
-               csv_file=out_path_csv,
-               sql_file=out_path_sql,
-               columns=['id', 'tpl_name', 'version', 'country', 'raw', 'imported_status', 'imported_by', 'imported_at',
-                        'flat_tmpl_id', 'status'],
-               table_name=template_table_name,
-               include_id_in_sql=False)
+        if len(template_data_def) > 0:
+            export(data=template_data_def,
+                   csv_file=out_path_csv if create_csv else None,
+                   sql_file=out_path_sql,
+                   columns=['fields', 'labels', 'examples', 'definition', 'valid_values', 'tmpl_id', 'country',
+                            'required', 'status', 'imported_by', 'imported_at'],
+                   csv_index='id',
+                   sql_index=None,
+                   start_index=1,
+                   table_name=template_values_table_name)
 
-    out_path_csv = os.path.join(output_directory_path, '{}.csv'.format(template_data_def))
-    out_path_sql = os.path.join(output_directory_path, '{}.sql'.format(template_data_def))
-
-    if len(template_data_def) > 0:
-        export(data=template_data_def,
-               csv_file=out_path_csv,
-               sql_file=out_path_sql,
-               columns=['id', 'fields', 'labels', 'examples', 'definition', 'valid_values', 'tmpl_id', 'country',
-                        'required', 'status', 'imported_by', 'imported_at'],
-               table_name=template_values_table_name,
-               include_id_in_sql=False)
+        break
 
     end = datetime.now()
 
     write_logs(output_directory_path, start, end)
-
-
-"""
-    
-            if (os.path.exists(out_path_csv) and os.path.isfile(out_path_csv)) or (
-                    os.path.exists(out_path_sql) and os.path.isfile(out_path_sql)):
-                print_progress('ALREADY EXIST:%s|%s already exist' % (out_path_csv, out_path_sql), end='\n\n')
-                logs.append('ALREADY EXIST:%s|%s already exist' % (out_path_csv, out_path_sql))
-                logs.append('')
-"""

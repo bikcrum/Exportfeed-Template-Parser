@@ -4,5 +4,7 @@
   "output_directory_path": "/path/to/your/output/directory",
   "flat_file_placeholder": "Flat.File.{}-{}.csv",
   "template_table_name": "templates_updated",
-  "template_values_table_name": "template_values_updated"
+  "template_values_table_name": "template_values_updated",
+  "create_csv": 1,
+  "filter_country": []
 }
