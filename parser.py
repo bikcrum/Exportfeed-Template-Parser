@@ -339,8 +339,6 @@ def parser(template_csv_file_path, template_directory_path, output_directory_pat
                    start_index=1,
                    table_name=template_values_table_name)
 
-        break
-
     end = datetime.now()
 
     write_logs(output_directory_path, start, end)
