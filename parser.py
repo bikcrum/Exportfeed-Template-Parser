@@ -60,9 +60,9 @@ def export(data, csv_file, sql_file, columns, csv_index, sql_index, start_index,
     for i in range(len(data)):
 
         if sql_index:
-            row = ','.join(['"{}"'.format(d) for d in [i + start_index] + data[i]])
+            row = ','.join(["{}".format(json.dumps(str(d))) for d in [i + start_index] + data[i]])
         else:
-            row = ','.join(['"{}"'.format(d) for d in data[i]])
+            row = ','.join(["{}".format(json.dumps(str(d))) for d in data[i]])
 
         if i == len(data) - 1:
             text += '({});'.format(row)
@@ -174,7 +174,6 @@ def get_template_definition(df, df_val, category, country_code, flat_tmp_id):
     now = datetime.now()
     str_now = now.strftime("%Y-%m-%d %H:%M:%S")
 
-    now = datetime.now()
     for i in range(len(df_val.columns)):
         values = []
         for j in range(2, len(df_val[i])):
@@ -185,8 +184,9 @@ def get_template_definition(df, df_val, category, country_code, flat_tmp_id):
         head = df_val.iloc[0, i]
         head = [h.strip().strip(']').strip('[').strip() for h in str(head).split('-')]
 
-        key = df_val.iloc[1, i]
         pos = 1 if len(head) >= 2 else 0
+
+        key = df_val.iloc[1, i]
 
         if key in kv:
             kv[key][head[pos]] = values
