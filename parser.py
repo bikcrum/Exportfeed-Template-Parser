@@ -10,6 +10,17 @@ logs = []
 root = None
 
 
+def extract_prepended_number(text):
+    numstr = []
+    for i in range(len(text) - 1, -1, -1):
+        if '0' <= text[i] <= '9':
+            numstr.append(text[i])
+        else:
+            return text[0:i + 1], None if len(numstr) == 0 else int(''.join(reversed(numstr)))
+
+    return None, None if len(numstr) == 0 else int(''.join(reversed(numstr)))
+
+
 def get_data_frame(*file_paths):
     global logs
 
@@ -212,13 +223,23 @@ def get_template_definition(df, df_val, category, country_code, flat_tmp_id):
             continue
 
         # `fields`, `labels`, `examples`, `definition`, `valid_values`, `tmpl_id`, `country`, `required`, `status`, `imported_by`, `imported_at`
-        if field_name in new_kv:
-            data.append([field_name, local_label_name, example, required, json.dumps(new_kv[field_name]), flat_tmp_id,
+        valid_values = json.dumps(new_kv[field_name]) if field_name in new_kv else ''
+
+        field_name_range = [fn.strip() for fn in field_name.split('-')]
+
+        if len(field_name_range) >= 2:
+            range_name, lb = extract_prepended_number(field_name_range[0])
+            _, ub = extract_prepended_number(field_name_range[1])
+
+            if lb is not None and ub is not None and range_name is not None:
+                for j in range(lb, ub + 1):
+                    data.append(
+                        ['{}{}'.format(range_name, j), local_label_name, example, required, valid_values, flat_tmp_id,
                          country_code, required, 1, 1, str_now])
-        else:
-            data.append(
-                [field_name, local_label_name, example, required, '', flat_tmp_id, country_code, required, 1, 1,
-                 str_now])
+                continue
+
+        data.append([field_name, local_label_name, example, required, valid_values, flat_tmp_id,
+                     country_code, required, 1, 1, str_now])
 
     return data
 
