@@ -78,7 +78,7 @@ def export(data, csv_file, sql_file, columns, csv_index, sql_index, start_index,
         if i == len(data) - 1:
             text += '({});'.format(row)
         else:
-            text += '({}),'.format(row)
+            text += '({}),\n'.format(row)
 
     f = open(sql_file, 'w')
     f.write(text)
