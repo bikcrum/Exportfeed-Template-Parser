@@ -262,6 +262,8 @@ def parser(template_csv_file_path, template_directory_path, output_directory_pat
     # country_codes = sorted(groups.keys(), reverse=True)
     country_codes = groups.keys()
 
+    template_data_all = []
+    template_data_def_all = []
     for country_code in country_codes:
         if len(filter_country) > 0 and country_code not in filter_country:
             continue
@@ -335,6 +337,7 @@ def parser(template_csv_file_path, template_directory_path, output_directory_pat
             template_data_def += rows
 
         if len(template_data) > 0:
+            template_data_all += template_data
             export(data=template_data,
                    csv_file=out_path_csv if create_csv else None,
                    sql_file=out_path_sql,
@@ -350,6 +353,7 @@ def parser(template_csv_file_path, template_directory_path, output_directory_pat
         out_path_sql = os.path.join(output_directory_path, country_code, '{}.sql'.format(template_values_table_name))
 
         if len(template_data_def) > 0:
+            template_data_def_all += template_data_def
             export(data=template_data_def,
                    csv_file=out_path_csv if create_csv else None,
                    sql_file=out_path_sql,
@@ -359,6 +363,37 @@ def parser(template_csv_file_path, template_directory_path, output_directory_pat
                    sql_index=None,
                    start_index=1,
                    table_name=template_values_table_name)
+
+    if len(template_data_all) > 0:
+        out_path_csv = os.path.join(output_directory_path, 'ALL', '{}.csv'.format(template_table_name))
+        out_path_sql = os.path.join(output_directory_path, 'ALL', '{}.sql'.format(template_table_name))
+
+        export(data=template_data_all,
+               csv_file=out_path_csv if create_csv else None,
+               sql_file=out_path_sql,
+               columns=['tpl_name', 'version', 'country', 'raw', 'imported_status', 'imported_by',
+                        'imported_at',
+                        'flat_tmpl_id', 'status'],
+               csv_index='id',
+               sql_index=None,
+               start_index=1,
+               table_name=template_table_name)
+
+    if len(template_data_def_all) > 0:
+        out_path_csv = os.path.join(output_directory_path, 'ALL',
+                                    '{}.csv'.format(template_values_table_name))
+        out_path_sql = os.path.join(output_directory_path, 'ALL',
+                                    '{}.sql'.format(template_values_table_name))
+
+        export(data=template_data_def_all,
+               csv_file=out_path_csv if create_csv else None,
+               sql_file=out_path_sql,
+               columns=['fields', 'labels', 'examples', 'definition', 'valid_values', 'tmpl_id', 'country',
+                        'required', 'status', 'imported_by', 'imported_at'],
+               csv_index='id',
+               sql_index=None,
+               start_index=1,
+               table_name=template_values_table_name)
 
     end = datetime.now()
 
