@@ -21,14 +21,17 @@ def extract_prepended_number(text):
     return None, None if len(numstr) == 0 else int(''.join(reversed(numstr)))
 
 
-def get_data_frame(*file_paths):
+def get_data_frame(*file_paths, isDataDefinition):
     global logs
 
     for file_path in file_paths:
         if os.path.exists(file_path) and os.path.isfile(file_path):
             print_progress('PROCESSING:%s' % file_path)
             try:
-                return pd.read_csv(file_path, header=None, encoding="ISO-8859-1", low_memory=False)
+                if isDataDefinition:
+                    return pd.read_csv(file_path, encoding="ISO-8859-1", low_memory=False, skiprows=1)
+                else:
+                    return pd.read_csv(file_path, encoding="ISO-8859-1", low_memory=False, header=None)
             except pd.errors.EmptyDataError:
                 print_progress("EMPTY_FILE:%s is empty" % file_path)
                 return None
@@ -222,11 +225,11 @@ def get_template_definition(df, df_val, category, country_code, flat_tmp_id, val
             new_kv[key] = kv[key][inner_keys[0]]
 
     data = []
-    for i in range(3, len(df)):
-        field_name = df.iloc[i, 1]
-        local_label_name = df.iloc[i, 2]
-        example = df.iloc[i, 5]
-        required = 1 if df.iloc[i, 6] == 'Required' else 0
+    for i in range(2, len(df)):
+        field_name = df.loc[i, 'Field Name']
+        local_label_name = df.loc[i, 'Local Label Name']
+        example = df.loc[i, 'Example']
+        required = 1 if df.loc[i, 'Required?'] == 'Required' else 0
 
         if field_name is None or pd.isnull(field_name) or len(field_name) == 0:
             continue
@@ -308,6 +311,7 @@ def parser(template_csv_file_path, template_directory_path, output_directory_pat
                              flat_file_placeholder.format('{}.{}'.format(category, country_code), 'Template')),
                 os.path.join(template_directory_path, country_code,
                              flat_file_placeholder.format('{}.com'.format(category), 'Template')),
+                isDataDefinition=False
             )
 
             if df is None:
@@ -326,6 +330,7 @@ def parser(template_csv_file_path, template_directory_path, output_directory_pat
                                                           'DataDefinitions')),
                 os.path.join(template_directory_path, country_code,
                              flat_file_placeholder.format('{}.com'.format(category), 'DataDefinitions')),
+                isDataDefinition=True
             )
 
             if df is None:
@@ -339,6 +344,7 @@ def parser(template_csv_file_path, template_directory_path, output_directory_pat
                                                           'ValidValues')),
                 os.path.join(template_directory_path, country_code,
                              flat_file_placeholder.format('{}.com'.format(category), 'ValidValues')),
+                isDataDefinition=False
             )
 
             if df_val is None:
