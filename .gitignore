@@ -1,5 +1,5 @@
 .idea
-output
+output*
 res
 config.json
 .DS_store

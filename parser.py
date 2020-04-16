@@ -177,10 +177,19 @@ def get_template_data(df, category, country_code, flat_tmp_id):
 
     raw = df.to_csv(index=False, header=False, sep='\t')
 
-    return [category, kv_dict['Version'], country_code, raw, 1, 1, str_now, flat_tmp_id, 1]
+    valid_fields = set()
+    if len(df) >= 3:
+        for j in range(len(df.iloc[2])):
+            field = df.iloc[2, j]
+            valid_fields.add(field)
+    else:
+        print_progress('ERROR:Field (row 3) doesn\'t exist in cateogry %d of country %d' % (category, country_code))
+        return None
+
+    return [category, kv_dict['Version'], country_code, raw, 1, 1, str_now, flat_tmp_id, 1], valid_fields
 
 
-def get_template_definition(df, df_val, category, country_code, flat_tmp_id):
+def get_template_definition(df, df_val, category, country_code, flat_tmp_id, valid_fields):
     kv = {}
     now = datetime.now()
     str_now = now.strftime("%Y-%m-%d %H:%M:%S")
@@ -233,13 +242,16 @@ def get_template_definition(df, df_val, category, country_code, flat_tmp_id):
 
             if lb is not None and ub is not None and range_name is not None:
                 for j in range(lb, ub + 1):
-                    data.append(
-                        ['{}{}'.format(range_name, j), local_label_name, example, required, valid_values, flat_tmp_id,
-                         country_code, required, 1, 1, str_now])
+                    field_name = '{}{}'.format(range_name, j)
+                    if field_name in valid_fields:
+                        data.append(
+                            [field_name, local_label_name, example, required, valid_values, flat_tmp_id,
+                             country_code, required, 1, 1, str_now])
                 continue
 
-        data.append([field_name, local_label_name, example, required, valid_values, flat_tmp_id,
-                     country_code, required, 1, 1, str_now])
+        if field_name in valid_fields:
+            data.append([field_name, local_label_name, example, required, valid_values, flat_tmp_id,
+                         country_code, required, 1, 1, str_now])
 
     return data
 
@@ -301,7 +313,7 @@ def parser(template_csv_file_path, template_directory_path, output_directory_pat
             if df is None:
                 continue
 
-            row = get_template_data(df, category, country_code, flat_tmp_id)
+            row, valid_fields = get_template_data(df, category, country_code, flat_tmp_id)
             template_data.append(row)
 
             """ PROCESS TEMPLATE VALUES FILE """
@@ -333,7 +345,7 @@ def parser(template_csv_file_path, template_directory_path, output_directory_pat
                 continue
 
             # print_progress(df_val)
-            rows = get_template_definition(df, df_val, category, country_code, flat_tmp_id)
+            rows = get_template_definition(df, df_val, category, country_code, flat_tmp_id, valid_fields)
             template_data_def += rows
 
         if len(template_data) > 0:
