@@ -226,10 +226,21 @@ def get_template_definition(df, df_val, category, country_code, flat_tmp_id, val
 
     data = []
     for i in range(2, len(df)):
+        """
+        This is suitable to access cell element but wouldn't work because column name
+        is different in other language
+        
         field_name = df.loc[i, 'Field Name']
         local_label_name = df.loc[i, 'Local Label Name']
         example = df.loc[i, 'Example']
         required = 1 if df.loc[i, 'Required?'] == 'Required' else 0
+        """
+
+        field_name = df.iloc[i, 1]
+        local_label_name = df.iloc[i, 2]
+        example = df.iloc[i, 5]
+        # we assume Required exist in last column (avoid use by index since inner columns might be missing
+        required = 1 if df.iloc[i, len(df.iloc[i]) - 1] == 'Required' else 0
 
         if field_name is None or pd.isnull(field_name) or len(field_name) == 0:
             continue
