@@ -175,8 +175,7 @@ def get_template_data(df, category, country_code, flat_tmp_id):
         return None
 
     # column head
-    # 'id', 'tpl_name', 'version', 'country', 'raw', 'imported_status', 'imported_by', 'imported_at',
-    # 'flat_tmpl_id', 'status'
+    # 'id', 'tpl_name', 'version', 'country', 'raw', 'flat_tmpl_id', 'status'
 
     raw = df.to_csv(index=False, header=False, sep='\t')
 
@@ -189,7 +188,7 @@ def get_template_data(df, category, country_code, flat_tmp_id):
         print_progress('ERROR:Field (row 3) doesn\'t exist in cateogry %d of country %d' % (category, country_code))
         return None
 
-    return [category, kv_dict['Version'], country_code, raw, 1, 1, str_now, flat_tmp_id, 1], valid_fields
+    return [category, kv_dict['Version'], country_code, raw, flat_tmp_id, 1], valid_fields
 
 
 def get_template_definition(df, df_val, category, country_code, flat_tmp_id, valid_fields):
@@ -245,7 +244,7 @@ def get_template_definition(df, df_val, category, country_code, flat_tmp_id, val
         if field_name is None or pd.isnull(field_name) or len(field_name) == 0:
             continue
 
-        # `fields`, `labels`, `examples`, `definition`, `valid_values`, `tmpl_id`, `country`, `required`, `status`, `imported_by`, `imported_at`
+        # `fields`, `labels`, `examples`, `definition`, `valid_values`, `tmpl_id`, `country`, `required`, `status`
         valid_values = json.dumps(new_kv[field_name]) if field_name in new_kv else ''
 
         field_name_range = [fn.strip() for fn in field_name.split('-')]
@@ -260,12 +259,12 @@ def get_template_definition(df, df_val, category, country_code, flat_tmp_id, val
                     if field_name in valid_fields:
                         data.append(
                             [field_name, local_label_name, example, required, valid_values, flat_tmp_id,
-                             country_code, required, 1, 1, str_now])
+                             country_code, required, 1])
                 continue
 
         if field_name in valid_fields:
             data.append([field_name, local_label_name, example, required, valid_values, flat_tmp_id,
-                         country_code, required, 1, 1, str_now])
+                         country_code, required, 1])
 
     return data
 
@@ -370,9 +369,7 @@ def parser(template_csv_file_path, template_directory_path, output_directory_pat
             export(data=template_data,
                    csv_file=out_path_csv if create_csv else None,
                    sql_file=out_path_sql,
-                   columns=['tpl_name', 'version', 'country', 'raw', 'imported_status', 'imported_by',
-                            'imported_at',
-                            'flat_tmpl_id', 'status'],
+                   columns=['tpl_name', 'version', 'country', 'raw', 'flat_tmpl_id', 'status'],
                    csv_index='id',
                    sql_index=None,
                    start_index=1,
@@ -387,7 +384,7 @@ def parser(template_csv_file_path, template_directory_path, output_directory_pat
                    csv_file=out_path_csv if create_csv else None,
                    sql_file=out_path_sql,
                    columns=['fields', 'labels', 'examples', 'definition', 'valid_values', 'tmpl_id', 'country',
-                            'required', 'status', 'imported_by', 'imported_at'],
+                            'required', 'status'],
                    csv_index='id',
                    sql_index=None,
                    start_index=1,
@@ -400,9 +397,7 @@ def parser(template_csv_file_path, template_directory_path, output_directory_pat
         export(data=template_data_all,
                csv_file=out_path_csv if create_csv else None,
                sql_file=out_path_sql,
-               columns=['tpl_name', 'version', 'country', 'raw', 'imported_status', 'imported_by',
-                        'imported_at',
-                        'flat_tmpl_id', 'status'],
+               columns=['tpl_name', 'version', 'country', 'raw', 'flat_tmpl_id', 'status'],
                csv_index='id',
                sql_index=None,
                start_index=1,
@@ -418,7 +413,7 @@ def parser(template_csv_file_path, template_directory_path, output_directory_pat
                csv_file=out_path_csv if create_csv else None,
                sql_file=out_path_sql,
                columns=['fields', 'labels', 'examples', 'definition', 'valid_values', 'tmpl_id', 'country',
-                        'required', 'status', 'imported_by', 'imported_at'],
+                        'required', 'status'],
                csv_index='id',
                sql_index=None,
                start_index=1,
