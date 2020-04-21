@@ -1,6 +1,7 @@
 .idea
+input*
 output*
-res
+test
 config.json
 .DS_store
 __pycache__
