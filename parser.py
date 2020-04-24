@@ -224,7 +224,7 @@ def get_template_definition(df, df_val, category, country_code, flat_tmp_id, val
             new_kv[key] = kv[key][inner_keys[0]]
 
     data = []
-    for i in range(2, len(df)):
+    for i in range(1, len(df)):
         """
         This is suitable to access cell element but wouldn't work because column name
         is different in other language
@@ -238,6 +238,7 @@ def get_template_definition(df, df_val, category, country_code, flat_tmp_id, val
         field_name = df.iloc[i, 1]
         local_label_name = df.iloc[i, 2]
         example = df.iloc[i, 5]
+
         # we assume Required exist in last column (avoid use by index since inner columns might be missing
         required = 1 if df.iloc[i, len(df.iloc[i]) - 1] == 'Required' else 0
 
@@ -271,7 +272,7 @@ def get_template_definition(df, df_val, category, country_code, flat_tmp_id, val
 
 def parser(template_csv_file_path, template_directory_path, output_directory_path, flat_file_placeholder,
            template_table_name, template_values_table_name, create_csv, filter_country):
-    template_csv_df = pd.read_csv(template_csv_file_path, header=None)
+    template_csv_df = pd.read_csv(template_csv_file_path)
 
     global logs, total_rows, current_row
     current_row = 0
@@ -283,9 +284,10 @@ def parser(template_csv_file_path, template_directory_path, output_directory_pat
     total_rows = len(template_csv_df)
 
     # group by country code
-    groups = dict(tuple(template_csv_df.groupby(2)))
+    groups = dict(tuple(template_csv_df.groupby(['country'])))
     # country_codes = sorted(groups.keys(), reverse=True)
     country_codes = groups.keys()
+    print(country_codes)
 
     template_data_all = []
     template_data_def_all = []
@@ -310,8 +312,9 @@ def parser(template_csv_file_path, template_directory_path, output_directory_pat
 
             current_row += 1
 
+            # TODO replace with column name
             flat_tmp_id = template_csv_df_group.iloc[i, 0]
-            category = template_csv_df_group.iloc[i, 4]
+            category = template_csv_df_group.iloc[i, 1]
 
             """ PROCESS TEMPLATE FILE """
             # all possible paths
